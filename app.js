@@ -28,6 +28,9 @@ const Post = require('./models/Post');
 
 const User = require('./models/User');
 
+const Blog = require('./models/Blog');
+
+
 const url = process.env.DATABASE_URL
 
 mongoose.connect(url, {
@@ -52,6 +55,72 @@ app.use(methodOverride('_method'));
 // });
 
 const bcrypt = require('bcrypt');
+
+//MULTER
+const multer = require('multer');
+
+app.use(express.static('uploads'));
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, 'uploads/'); // Destination folder for uploaded files
+    },
+    filename: (req, file, cb) => {
+      cb(null, file.originalname); // Use original file name
+    },
+});
+
+const upload = multer({storage});
+
+app.post('/upload', upload.single('image'), (req, res) =>{
+    if(!req.file){
+        res.status(400).send('No file uploaded');
+    }
+    else{
+        res.send('File uploaded successfully')
+    }
+})
+
+app.post('/uploadFiles', upload.array('images', 5), (req, res) => {
+    if(!req.files || req.files.length === 0){
+        res.status(400).send('No files uploaded');
+    }
+    else{
+        res.send('Files uploaded successfully');
+    }
+})
+
+//-----------------BLOG -------------------------------------
+
+
+app.post('/submit-blog',upload.single('file'), function(req, res){
+    if(!req.file){
+        res.status(400).send('No file uploaded');
+    }
+    else{
+        res.send('File uploaded successfully')
+        const Data = new Blog({
+            titre : req.body.titre,
+            username : req.body.username,
+            imagename : req.body.imagename,
+        })
+        Data.save().then(() => {
+            console.log("Data saved successfully !");
+        }).catch(err => { console.log(err)});
+    }
+})
+
+app.get('/myblog', function(req, res) {
+    Blog.find()
+    .then(data =>{
+        console.log(data);
+        res.json(data);
+    })
+    .catch(err => console.log(err))
+});
+
+
+
 
 //----------------------------Contact ----------------------------------------------------------------
 
