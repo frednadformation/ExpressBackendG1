@@ -12,6 +12,11 @@ app.set('view engine', 'ejs');
 
 require('dotenv').config();
 
+const cors = require('cors');
+
+app.use(cors());
+
+
 //Mongodb :
 var mongoose = require('mongoose');
 
@@ -30,6 +35,12 @@ mongoose.connect(url, {
     useUnifiedTopology: true
 }).then(console.log("MongoDB connected !"))
 .catch(err => console.log(err))
+
+//Cookie parser
+
+const cookieParser = require('cookie-parser')
+app.use(cookieParser());
+const {createToken, validateToken} = require("./JWT")
 
 
 //METHOD OVERRIDE
@@ -84,11 +95,12 @@ app.post('/submit-contact', function(req, res){
     }).catch(err => { console.log(err)});
 });
 
-app.get('/', function(req, res) {
+app.get('/',validateToken, function(req, res) {
     Contact.find()
     .then(data =>{
         console.log(data);
-        res.render('Home', {data: data});
+        // res.render('Home', {data: data});
+        res.json(data);
     })
     .catch(err => console.log(err))
 });
@@ -147,14 +159,15 @@ app.post('/submitFilm', function (req, res) {
     })
     Data.save().then((data) =>{
         console.log("Data saved");
-        res.redirect('/')
+        res.redirect('http://localhost:3000/allfilm/')
     })
 });
 
 app.get('/allfilm', function (req, res) {
     Film.find().then((data) => {
         console.log(data);
-        res.render('Allfilm', {data: data});
+        // res.render('Allfilm', {data: data});
+        res.json(data);
     })
 });
 
@@ -163,7 +176,8 @@ app.get('/film/:id', function (req, res) {
     Film.findOne({
         _id: req.params.id
     }).then(data =>{
-        res.render('EditFilm', {data: data});
+        // res.render('EditFilm', {data: data});
+        res.json(data);
     })
     .catch(err => console.log(err))
 });
@@ -179,7 +193,7 @@ app.put('/film/edit/:id', function(req, res) {
     Film.updateOne({_id: req.params.id}, {$set: Data})
     .then(data =>{
         console.log("Data updated");
-        res.redirect('/')
+        res.redirect('http://localhost:3000/allfilm/')
     })
     .catch(err =>console.log(err));
 });
@@ -187,7 +201,7 @@ app.put('/film/edit/:id', function(req, res) {
 app.delete('/film/delete/:id', function(req, res) {
     Film.findOneAndDelete({_id: req.params.id})
     .then(()=>{
-        res.redirect('/');
+        res.redirect('http://localhost:3000/allfilm/');
     })
     .catch(err=>console.log(err))
 });
@@ -262,7 +276,8 @@ app.post('/api/signup', function(req, res) {
     Data.save()
     .then((data) => {
         console.log("User saved !");
-        res.render('UserPage', {data: data});
+        // res.render('UserPage', {data: data});
+        res.redirect('http://localhost:3000/allfilm')
     })
     .catch(err => console.log(err));
 });
@@ -286,9 +301,18 @@ app.post('/api/login', function(req, res) {
         if(!bcrypt.compareSync(req.body.password, user.password))
         {
             res.send("Invalid password !");
-        }        
-        console.log("user found");
-        res.render('UserPage', {data: user});
+        }
+        
+        const accessToken =createToken(user);
+
+        res.cookie("access-token", accessToken, {
+            maxAge: 60 * 60 * 24 * 30,
+            httpOnly: true
+        })
+        //res.json("LOGGED IN ! ")
+        // console.log("user found");
+        // res.render('UserPage', {data: user});
+        res.redirect("http://localhost:3000/allfilm")
     }).catch((error)=>{console.log(error)});
 });
 
