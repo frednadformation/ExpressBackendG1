@@ -14,7 +14,14 @@ require('dotenv').config();
 
 const cors = require('cors');
 
-app.use(cors());
+var corsOptions = {
+  credentials: true,
+  origin: 'http://localhost:3000',
+  optionsSuccessStatus: 200
+}
+app.options('*', cors(corsOptions))
+
+app.use(cors(corsOptions));
 
 
 //Mongodb :
@@ -55,6 +62,37 @@ app.use(methodOverride('_method'));
 // });
 
 const bcrypt = require('bcrypt');
+
+const http = require('http');
+const socketIO = require('socket.io');
+const server = http.createServer(app);
+
+const io = socketIO(server, {
+    cors : {
+        origin : 'http://localhost:3000',
+        methods: ['GET', 'POST'],
+        allowHeaders: ['Content-Type'],
+        credentials: true
+    }
+})
+
+io.on('connection', (socket)=>{
+    console.log('New client connected');
+
+    socket.on('message', (data)=>{
+        console.log("received message", data);
+        io.emit('message', data)
+    });
+
+    socket.on('disconnect',()=>{
+        console.log('disconnected');
+    })
+
+})
+
+
+
+
 
 //MULTER
 const multer = require('multer');
@@ -165,6 +203,7 @@ app.post('/submit-contact', function(req, res){
 });
 
 app.get('/',validateToken, function(req, res) {
+    
     Contact.find()
     .then(data =>{
         console.log(data);
@@ -224,7 +263,8 @@ app.post('/submitFilm', function (req, res) {
         nom : req.body.nom,
         date : req.body.date,
         realisateur : req.body.realisateur,
-        genre: req.body.genre
+        genre: req.body.genre,
+        date_sortie : req.body.date_sortie
     })
     Data.save().then((data) =>{
         console.log("Data saved");
@@ -353,6 +393,13 @@ app.post('/api/signup', function(req, res) {
 app.get('/inscription', function(req, res) {
     res.render('Signup')
 });
+app.get('/:id', function(req, res) {
+    User.findOne({_id: req.params.id})
+    .then((data) => {
+        res.json(data);
+    })
+    .catch(err => console.log(err));
+});
 
 app.get('/login', function(req, res) {
     res.render('Login');
@@ -386,6 +433,6 @@ app.post('/api/login', function(req, res) {
 });
 
 
-var server = app.listen(5000, function () {
+server.listen(5000, function () {
     console.log("Server listening on port 5000");
 });
