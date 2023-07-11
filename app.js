@@ -1,8 +1,38 @@
+"use strict";
+
 var express = require('express');
 
 var app = express();
 
 var path = require('path');
+
+//Too busy
+const toobusy = require('toobusy-js');
+
+//Captcha
+const session = require('express-session')
+const svgCaptcha = require('svg-captcha')
+
+app.use(
+    session({
+        secret: "secret-key",
+        resave: false,
+        saveUninitialized: true
+    })
+)
+
+//Pollution HTTP
+const hpp = require('hpp')
+
+app.use(hpp());
+
+//Helmet
+const helmet = require('helmet');
+
+app.use(helmet());
+//Cache control  - nocache
+const nocache = require('nocache')
+app.use(nocache());
 
 //bodyparser
 var bodyParser = require('body-parser');
@@ -91,6 +121,15 @@ io.on('connection', (socket)=>{
 })
 
 
+//Toobusy-js
+app.use(function(req, res, next){
+    if(toobusy()){
+        res.status(503).send("Server too busy")
+    }
+    else{
+        next();
+    }
+})
 
 
 
@@ -149,6 +188,7 @@ app.post('/submit-blog',upload.single('file'), function(req, res){
 })
 
 app.get('/myblog', function(req, res) {
+
     Blog.find()
     .then(data =>{
         console.log(data);
@@ -157,6 +197,28 @@ app.get('/myblog', function(req, res) {
     .catch(err => console.log(err))
 });
 
+
+
+//Captcha
+
+app.get('/captcha', function(req, res) {
+    const captcha = svgCaptcha.create();
+    req.session.captcha = captcha.text;
+    res.type('svg');
+    res.status(200).send(captcha.data);
+});
+
+app.post('/verify', function(req, res) {
+    const {userInput} = req.body;
+
+    if (userInput === req.session.captcha) {
+        res.status(200).send("Captcha valid")
+    }
+    else{
+        res.status(400).send("Captcha invalid")
+    }
+
+});
 
 
 
@@ -401,11 +463,15 @@ app.get('/:id', function(req, res) {
     .catch(err => console.log(err));
 });
 
+app.get('/getToken', function(req, res) {
+    console.log(cookie.accessToken);
+});
+
 app.get('/login', function(req, res) {
     res.render('Login');
 });
-
-app.post('/api/login', function(req, res) {
+  app.post('/api/login', function(req, res) {
+    console.log(req.body);
     User.findOne({
         username: req.body.username
     }).then((user)=>{
@@ -425,7 +491,8 @@ app.post('/api/login', function(req, res) {
             maxAge: 60 * 60 * 24 * 30,
             httpOnly: true
         })
-        //res.json("LOGGED IN ! ")
+        // res.setHeader('Authorization', 'Bearer ' + accessToken);
+        // res.json("LOGGED IN ! ")
         // console.log("user found");
         // res.render('UserPage', {data: user});
         res.redirect("http://localhost:3000/allfilm")
